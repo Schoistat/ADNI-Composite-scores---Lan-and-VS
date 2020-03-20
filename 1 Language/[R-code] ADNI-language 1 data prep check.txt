@@ -1,0 +1,427 @@
+#       last updated: 2020. 03. 19. cleaned.
+# 	Seo-Eun Choi
+#---------------------------------------------------------------------------------------------------------------
+
+# If you don't have MplusAutomation and plyr, you may install them as:
+listOfPackages <- c("MplusAutomation","plyr")
+for (i in listOfPackages){
+     if(! i %in% installed.packages()){
+         install.packages(i, dependencies = TRUE)
+     }
+     library(i)
+} 
+library(MplusAutomation) # 0.7-3
+
+####################################################################################
+
+# data.frame definitions
+#-----------------------------------------------------------------------------------
+#   see [R-code] definitions.txt
+#---------------------------------------------------------------------------------------
+#
+#
+#  GET DATA: use all subjects, so firstaddx does not matter
+#
+#
+
+
+
+ADNIChoi = ADNI_190115.ultimate		# for convenience with shorter name
+
+itemnames = c("catanimsc", "catvegesc", "bnttotal", "q2score", "q5score", "q6score", "mmwatch", "mmpencil", "mmrepeat", "mmhand", "mmfold", "mmonflr", "mmread", "mmwrite", "camel", "lion", "rhino", "repeat1", "repeat2", "ffluency")
+idnames = c("rid", "phase", "visnum", "bl_dx", "dxcurren", "firstaddx","addxvis","firstmcidx","mcidxvis","mcibefaddx","lastmci","sconly", "blonly")
+
+#---------------------------------------------------------------------------------------
+ADNIChoi = ADNI_190115.ultimate[,-329]	
+unique.rid = unique(ADNIChoi[,'rid'])
+
+
+####################################################################################
+#-----------------------------------------------------------------------------------
+# 1. Data prepration				           	     prepare ADNIsub
+#-----------------------------------------------------------------------------------
+####################################################################################
+
+#-----------------------------------------------------------------------
+#
+#	ADNIsub: take 13 id variables (idnames)  and 20 items (itemnames) only
+#
+#-----------------------------------------------------------------------
+
+for(i in 1:13){
+cat(noquote(cbind(idnames[i], which( names(ADNIChoi) ==idnames[i]))),"\n")
+}
+#		rid 		2 
+#		phase 		6 
+#		visnum 		4 
+#		bl_dx 		23 
+#		dxcurren 	24 
+#		firstaddx 	27 
+#		addxvis 	29 
+#		firstmcidx 	328 
+#		mcidxvis 	28 
+#		mcibefaddx 	30 
+#		lastmci 	31 
+#		sconly 		8 
+#		blonly 		9 
+
+
+noquote(cbind(idnames, which( names(ADNIChoi) %in% idnames)))
+
+# 		     idnames       
+#		 [1,] rid        2  
+#		 [2,] phase      4  
+#		 [3,] visnum     6  
+#		 [4,] bl_dx      8  
+#		 [5,] dxcurren   9  
+#		 [6,] firstaddx  23 
+#		 [7,] addxvis    24 
+#		 [8,] firstmcidx 27 
+#		 [9,] mcidxvis   28 
+#		[10,] mcibefaddx 29 
+#		[11,] lastmci    30 
+#		[12,] sconly     31 
+#		[13,] blonly     328	# not correct. be careful!
+
+
+
+
+		ADNIChoi[is.na(ADNIChoi[,'mcibefaddx']),'mcibefaddx']=0
+		ADNIChoi[is.na(ADNIChoi[,'lastmci']),'lastmci']=0
+
+ADNIsub = ADNIChoi[,which(names(ADNIChoi)%in%c(idnames,itemnames))]	# ADNIsub contains only id variables and language items
+
+
+ADNIsub1 = ADNIsub	# save original: ADNIsub1 (names are not in the order I want)
+ADNIsub[,1:8] = ADNIsub1[,1:8]; names(ADNIsub)[1:8] = names(ADNIsub1)[1:8]
+ADNIsub[,9]   = ADNIsub1[,10]; names(ADNIsub)[9] = names(ADNIsub1)[10]
+ADNIsub[,10]  = ADNIsub1[,33]; names(ADNIsub)[10] = names(ADNIsub1)[33]
+ADNIsub[,11]  = ADNIsub1[,9] ; names(ADNIsub)[11] = names(ADNIsub1)[9] 
+ADNIsub[,12:33] = ADNIsub1[,11:32]; names(ADNIsub)[12:33] = names(ADNIsub1)[11:32]
+
+
+
+#### Since you have used dplyr later, may be you can use the select() function with everything() in it to make the code cleaner
+
+# checking
+#ADNIsub[1:5,]
+#ADNIsub1[1:5,]     # sub1 (contains old) 
+
+# names(ADNIsub1)
+	1		2	3		4		5	6		7		8	9		0
+ [1] "rid"        "visnum"     "phase"      "sconly"     "blonly"     "bl_dx"      "dxcurren"   "firstaddx"  "mcidxvis"   "addxvis"   
+[11] "mcibefaddx" "lastmci"    "catanimsc"  "catvegesc"  "bnttotal"   "mmwatch"    "mmpencil"   "mmrepeat"   "mmhand"     "mmfold"    
+[21] "mmonflr"    "mmread"     "mmwrite"    "q2score"    "q5score"    "q6score"    "lion"       "rhino"      "camel"      "repeat1"   
+[31] "repeat2"    "ffluency"   "firstmcidx"
+
+# checking
+		 > cbind(names(ADNIsub1), names(ADNIsub))
+			OLD	   To BE   
+		 [1,] "rid"        "rid"       
+		 [2,] "visnum"     "visnum"    
+		 [3,] "phase"      "phase"     
+		 [4,] "sconly"     "sconly"    
+		 [5,] "blonly"     "blonly"    
+		 [6,] "bl_dx"      "bl_dx"     
+		 [7,] "dxcurren"   "dxcurren"  
+		 [8,] "firstaddx"  "firstaddx" 
+		---------------------------------
+		 [9,] "mcidxvis"   "addxvis"	[old 10]
+		[10,] "addxvis"    "firstmcidx"	[old 33]
+		[11,] "mcibefaddx" "mcidxvis"   [old  9]
+		[12,] "lastmci"    "mcibefaddx" [old 11]
+		[13,] "catanimsc"  "lastmci"    [old 12]
+		---------------------------------
+		[14,] "catvegesc"  "catanimsc"  [old 13]
+		[15,] "bnttotal"   "catvegesc"  [old 14]
+		[16,] "mmwatch"    "bnttotal"   [old 15]
+		[17,] "mmpencil"   "mmwatch"   
+		[18,] "mmrepeat"   "mmpencil"  
+		[19,] "mmhand"     "mmrepeat"  
+		[20,] "mmfold"     "mmhand"    
+		[21,] "mmonflr"    "mmfold"    
+		[22,] "mmread"     "mmonflr"   
+		[23,] "mmwrite"    "mmread"    
+		[24,] "q2score"    "mmwrite"   
+		[25,] "q5score"    "q2score"   
+		[26,] "q6score"    "q5score"   
+		[27,] "lion"       "q6score"   
+		[28,] "rhino"      "lion"      
+		[29,] "camel"      "rhino"     
+		[30,] "repeat1"    "camel"     
+		[31,] "repeat2"    "repeat1"   
+		[32,] "ffluency"   "repeat2"   
+		[33,] "firstmcidx" "ffluency"	[old 32]
+ 
+		# recall that identical(c(1,2,3), c(1,3,2))	[1] FALSE
+	for(i in 1:8)cat("i is ",i,identical(ADNIsub1[,i], ADNIsub[,i]),"\n")
+	i=9;  identical(ADNIsub1[,10], ADNIsub[,9])
+	i=10; identical(ADNIsub1[,33], ADNIsub[,10])
+	i=11; identical(ADNIsub1[,9],  ADNIsub[,11])
+	i=12; identical(ADNIsub1[,11], ADNIsub[,12])
+	i=13; identical(ADNIsub1[,12], ADNIsub[,13])
+	for(i in 14:33)cat("i is ",i,identical(ADNIsub1[,(i-1)], ADNIsub[,i]),"\n")
+
+	 # all true, YAY
+
+dim(ADNIsub)	# [1] 10851    33
+ 
+> names(ADNIsub)
+ [1] "rid"        "visnum"     "phase"      "sconly"     "blonly"     "bl_dx"      "dxcurren"   "firstaddx"  "addxvis"    "firstmcidx"
+[11] "mcidxvis"   "mcibefaddx" "lastmci"    "catanimsc"  "catvegesc"  "bnttotal"   "mmwatch"    "mmpencil"   "mmrepeat"   "mmhand"    
+[21] "mmfold"     "mmonflr"    "mmread"     "mmwrite"    "q2score"    "q5score"    "q6score"    "lion"       "rhino"      "camel"     
+[31] "repeat1"    "repeat2"    "ffluency"  
+
+
+
+#--------------------------------------------------------------
+# merge ADNI2 and ADNIGO: update ADNIsub
+#--------------------------------------------------------------
+table(ADNIsub[,'phase'], exclude=NULL)
+# Query: what is the difference between ADNIsub[,'phase'] and ADNIsub$phase? # they are the same (SC: 191028)
+ADNIsub[ADNIsub[,'phase']=="ADNI1", "phase"] = 1
+ADNIsub[ADNIsub[,'phase']=="ADNI2", "phase"] = 2
+ADNIsub[ADNIsub[,'phase']=="ADNIGO","phase"] = 2
+ADNIsub[ADNIsub[,'phase']=="ADNI3", "phase"] = 3
+# phase is recoded 1,2,3,GO (string) -> 1,2,3 (numeric)
+names(ADNIsub)[which(names(ADNIsub)=="phase")] = "rphase"
+names(ADNIsub)[3]
+
+#--------------------------------------------------------------
+# DATA PREP: flip qscores
+#--------------------------------------------------------------
+
+ table(ADNIsub[,"visnum"], exclude=NULL)
+ table(ADNIsub[,"q2score"], exclude=NULL)
+ table(ADNIsub[,"q5score"], exclude=NULL)
+ table(ADNIsub[,"q6score"], exclude=NULL)
+
+  ADNIsub[,"q2score"] = 5 - ADNIsub[,"q2score"]
+  ADNIsub[,"q5score"] = 5 - ADNIsub[,"q5score"]
+  ADNIsub[,"q6score"] = 5 - ADNIsub[,"q6score"]
+  table(ADNIsub[,"q2score"], exclude=NULL)
+  table(ADNIsub[,"q5score"], exclude=NULL)
+  table(ADNIsub[,"q6score"], exclude=NULL)
+
+names(ADNIsub)[which(names(ADNIsub)=="q2score")] = "rq2core"
+names(ADNIsub)[which(names(ADNIsub)=="q5score")] = "rq5core"
+names(ADNIsub)[which(names(ADNIsub)=="q6score")] = "rq6core"
+
+
+
+# checking
+ 
+  table(ADNIsub[,"rphase"],ADNIsub[,"rq2score"],  exclude=NULL)
+  table(ADNIsub[,"rphase"],ADNIsub[,"rq5score"],  exclude=NULL)
+  table(ADNIsub[,"rphase"],ADNIsub[,"rq6score"],  exclude=NULL)
+
+#-------------------------------------------------------------
+# mark and get initial visits
+#-------------------------------------------------------------
+ADNIsub$initial = 0
+ADNIsub$initial[!duplicated(ADNIsub$rid)] = 1
+
+ADNIsub.initial = ADNIsub[ADNIsub[,'initial']==1,]
+ADNIsub.followup = ADNIsub[ADNIsub[,'initial']==0,]
+
+# take subset (temporary)
+
+ADNIsub.initial.ADNI1 = ADNIsub.initial[ADNIsub.initial[,'rphase']==1,]
+ADNIsub.initial.ADNI2 = ADNIsub.initial[ADNIsub.initial[,'rphase']==2,]
+ADNIsub.initial.ADNI3 = ADNIsub.initial[ADNIsub.initial[,'rphase']==3,]
+
+
+#####################################################################
+#
+#
+# DATA PREP:	COUNT ITEMS: collapsing rules (consistent)
+#
+#
+#####################################################################
+
+# categorize counts
+
+# 1) decide cutoff points
+# check: ADNIsub.initial.ADNI1 
+
+table(ADNIsub.initial.ADNI1[,'catanimsc'], exclude=NULL)
+table(ADNIsub.initial.ADNI2[,'catanimsc'], exclude=NULL)
+table(ADNIsub.initial.ADNI3[,'catanimsc'], exclude=NULL)
+table(ADNIsub.initial[,'catanimsc'], exclude=NULL)
+
+table(ADNIsub.initial.ADNI1[,'catvegesc'], exclude=NULL)
+table(ADNIsub.initial.ADNI2[,'catvegesc'], exclude=NULL)
+table(ADNIsub.initial.ADNI3[,'catvegesc'], exclude=NULL)
+table(ADNIsub.initial[,'catvegesc'], exclude=NULL)
+
+table(ADNIsub.initial.ADNI1[,'bnttotal'], exclude=NULL)
+table(ADNIsub.initial.ADNI2[,'bnttotal'], exclude=NULL)
+table(ADNIsub.initial.ADNI3[,'bnttotal'], exclude=NULL)
+table(ADNIsub.initial[,'bnttotal'], exclude=NULL)
+
+table(ADNIsub.initial.ADNI1[,'ffluency'], exclude=NULL)
+table(ADNIsub.initial.ADNI2[,'ffluency'], exclude=NULL)
+table(ADNIsub.initial.ADNI3[,'ffluency'], exclude=NULL)
+table(ADNIsub.initial[,'ffluency'], exclude=NULL)
+
+#-------------------------------------------------------
+# deal with outliers in catanimsc
+#-------------------------------------------------------
+# rid  217 phase1 (mci)    visnum 12 catanimsc 60 -> NA
+# rid 5175 phase3 (normal) visnum 48 catanimsc 55 -> NA
+
+
+
+ADNIsub[ADNIsub[,'rid']==217  & ADNIsub[,'visnum']==12,'catanimsc'] = NA
+ADNIsub[ADNIsub[,'rid']==5175 & ADNIsub[,'visnum']==48,'catanimsc'] = NA
+
+
+#----------------------------------------------------------------------
+# redefine
+ADNIsub.followup = ADNIsub[ADNIsub[,'initial']==0,]
+#   note that 	ADNIsub.initial
+#		ADNIsub.initial.ADNI1
+#		ADNIsub.initial.ADNI2
+#		ADNIsub.initial.ADNI3
+#	do not change because this modification occurs at follow-up visits.
+#----------------------------------------------------------------------
+
+# 
+#------------------------------------------------------------------------------------------------------------------
+
+# 2) collapse ACTION!
+  # if we apply all the same rules for collapsing over these four data.frames,
+  # it is enough to collapse with the biggest set (ADNIsub.change), then take subsets as needed
+
+	 which(names(ADNIsub)=="catanimsc")	#[1] 14
+	 which(names(ADNIsub)=="catvegesc")	#[1] 15
+	 which(names(ADNIsub)=="bnttotal")	#[1] 16
+	 which(names(ADNIsub)=="ffluency")	#[1] 33
+
+	 which(names(ADNIsub)=="rq2score")	#[1] 25
+	 which(names(ADNIsub)=="rq5score")	#[1] 26
+	 which(names(ADNIsub)=="rq6score")	#[1] 27
+ 
+
+ temp = data.matrix(ADNIsub)	# dim 10851 34  # matrix
+
+  i = 14  # catanimsc 
+	colnames(temp)[i]
+	table(temp[,i], exclude=NULL)
+	temp[temp[,i] < 5,                       i ] = 1       	# use | or &, NOT || &&
+	temp[(temp[,i] >=  5) & (temp[,i] < 9) , i ] = 2
+	temp[(temp[,i] >=  9) & (temp[,i] < 12) , i ] = 3
+	temp[(temp[,i] >= 12) & (temp[,i] < 15), i ] = 4
+	temp[(temp[,i] >= 15) & (temp[,i] < 18), i ] = 5
+	temp[(temp[,i] >= 18) & (temp[,i] < 21), i ] = 6
+	temp[(temp[,i] >= 21) & (temp[,i] < 24), i ] = 7
+	temp[(temp[,i] >= 24) & (temp[,i] < 28), i ] = 8
+	temp[(temp[,i] >= 28) & (temp[,i] < 32), i ] = 9
+	temp[ temp[,i] >= 32,                    i ] = 10       	
+	table(temp[,i], exclude=NULL)
+ 
+ 
+  i = 15  # catvegesc
+	colnames(temp)[i]
+	table(temp[,i], exclude=NULL)
+	temp[temp[,i] < 3,                       i ] = 1       	# use | or &, NOT || &&
+	temp[(temp[,i] >=  3) & (temp[,i] < 6) , i ] = 2
+	temp[(temp[,i] >=  6) & (temp[,i] < 9) , i ] = 3
+	temp[(temp[,i] >=  9) & (temp[,i] < 11), i ] = 4
+	temp[(temp[,i] >= 11) & (temp[,i] < 13), i ] = 5
+	temp[(temp[,i] >= 13) & (temp[,i] < 15), i ] = 6
+	temp[(temp[,i] >= 15) & (temp[,i] < 17), i ] = 7
+	temp[(temp[,i] >= 17) & (temp[,i] < 20), i ] = 8
+	temp[(temp[,i] >= 20) & (temp[,i] < 23), i ] = 9
+	temp[ temp[,i] >= 23,                    i ] = 10       	
+	table(temp[,i], exclude=NULL)
+
+ 
+  i = 16  # bnttotal 
+	colnames(temp)[i]
+	table(temp[,i], exclude=NULL)
+	temp[temp[,i] < 9,                       i ] = 1       	# use | or &, NOT || &&
+	temp[(temp[,i] >=  9) & (temp[,i] < 12), i ] = 2
+	temp[(temp[,i] >= 12) & (temp[,i] < 15), i ] = 3
+	temp[(temp[,i] >= 15) & (temp[,i] < 18), i ] = 4
+	temp[(temp[,i] >= 18) & (temp[,i] < 21), i ] = 5
+	temp[(temp[,i] >= 21) & (temp[,i] < 23), i ] = 6
+	temp[(temp[,i] >= 23) & (temp[,i] < 25), i ] = 7
+	temp[(temp[,i] >= 25) & (temp[,i] < 27), i ] = 8
+	temp[(temp[,i] >= 27) & (temp[,i] < 29), i ] = 9
+	temp[ temp[,i] >= 29,                    i ] = 10       	
+	table(temp[,i], exclude=NULL)
+
+#####################
+  i = 33  # ffluency 
+	colnames(temp)[i]
+	table(temp[,i], exclude=NULL)
+	temp[temp[,i] < 3,                       i ] = 1       	# use | or &, NOT || &&
+	temp[(temp[,i] >=  3) & (temp[,i] < 6),  i ] = 2
+	temp[(temp[,i] >=  6) & (temp[,i] < 9),  i ] = 3
+	temp[(temp[,i] >=  9) & (temp[,i] < 12), i ] = 4
+	temp[(temp[,i] >= 12) & (temp[,i] < 15), i ] = 5
+	temp[(temp[,i] >= 15) & (temp[,i] < 18), i ] = 6
+	temp[(temp[,i] >= 18) & (temp[,i] < 21), i ] = 7
+	temp[(temp[,i] >= 21) & (temp[,i] < 24), i ] = 8
+	temp[(temp[,i] >= 24) & (temp[,i] < 27), i ] = 9
+	temp[ temp[,i] >= 27,                    i ] = 10       	
+	table(temp[,i], exclude=NULL)
+ 
+# let's collapse qscore categories
+table(temp[,'rq2score'], exclude=NULL)
+table(temp[,'rq5score'], exclude=NULL)
+table(temp[,'rq6score'], exclude=NULL)
+
+temp[,'rq2score'] = temp[,'rq2score'] - 3 	# 0,1,2,3,4,5 -> -3,-2,-1,0,1,2
+temp[,'rq5score'] = temp[,'rq5score'] - 3 	# 0,1,2,3,4,5 -> -3,-2,-1,0,1,2
+temp[,'rq6score'] = temp[,'rq6score'] - 3 	# 0,1,2,3,4,5 -> -3,-2,-1,0,1,2
+
+temp[temp[,'rq2score'] < 0, 'rq2score'] = 0
+temp[temp[,'rq5score'] < 0, 'rq5score'] = 0
+temp[temp[,'rq6score'] < 0, 'rq6score'] = 0
+
+table(temp[,'rq2score'], exclude=NULL)
+table(temp[,'rq5score'], exclude=NULL)
+table(temp[,'rq6score'], exclude=NULL)
+
+
+ADNIsub.change = as.data.frame(temp) # put back to data.frame.
+
+
+ADNIsub[,'rq2score'] = ADNIsub.change[,'rq2score']	# qscores are treated as ordinal due to severe skewness, so ADNIsub must have collapsed values, too
+ADNIsub[,'rq5score'] = ADNIsub.change[,'rq5score']
+ADNIsub[,'rq6score'] = ADNIsub.change[,'rq6score']
+
+
+# q2,q5,q6 scores have been already recoded (reversing).
+# catanimsc, catvegesc, bnttotal, ffluency have been recoded.
+# CONVENTION: add 'r' at the beginning of recoded item. Limit the length 8.
+
+names(ADNIsub.change)[which(names(ADNIsub.change)=="catanimsc")] = "rcatanim" # limit under 8 characters
+names(ADNIsub.change)[which(names(ADNIsub.change)=="catvegesc")] = "rcatvege"
+names(ADNIsub.change)[which(names(ADNIsub.change)=="bnttotal")]  = "rbnttota"
+names(ADNIsub.change)[which(names(ADNIsub.change)=="ffluency")]  = "rffluenc"
+
+#-----------------------------
+# take initial only
+#-----------------------------
+table(ADNIsub.change[,'initial'], exclude=NULL)
+ 
+ADNIsub.change.initial  = ADNIsub.change[ADNIsub.change[,'initial']==1,]
+ADNIsub.change.followup = ADNIsub.change[ADNIsub.change[,'initial']==0,]
+ 
+ADNIsub.change.initial.ADNI1 = ADNIsub.change.initial[ADNIsub.change.initial[,'rphase']==1,]
+ADNIsub.change.initial.ADNI2 = ADNIsub.change.initial[ADNIsub.change.initial[,'rphase']==2,]
+ADNIsub.change.initial.ADNI3 = ADNIsub.change.initial[ADNIsub.change.initial[,'rphase']==3,]
+
+# re-define ADNIsub and subsequent data.frames
+ADNIsub.initial = ADNIsub[ADNIsub[,'initial']==1,]
+ADNIsub.followup = ADNIsub[ADNIsub[,'initial']==0,]
+ADNIsub.initial.ADNI1 = ADNIsub.initial[ADNIsub.initial[,'rphase']==1,]
+ADNIsub.initial.ADNI2 = ADNIsub.initial[ADNIsub.initial[,'rphase']==2,]
+ADNIsub.initial.ADNI3 = ADNIsub.initial[ADNIsub.initial[,'rphase']==3,]
+
+#############################################################################
+# READY TO GO
+#############################################################################

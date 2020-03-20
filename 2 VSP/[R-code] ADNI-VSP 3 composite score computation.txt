@@ -1,0 +1,147 @@
+#
+# Last updated: 2019.10.30. 
+# Seo-Eun Choi
+#
+#----------------------------------------------------------------------
+
+
+# For those who don't have MplusAutomation and plyr:
+listOfPackages <- c("MplusAutomation","plyr")
+for (i in listOfPackages){
+     if(! i %in% installed.packages()){
+         install.packages(i, dependencies = TRUE)
+     }
+     library(i)
+} 
+
+library(MplusAutomation) # 0.7-3
+
+####################################################################################
+
+# START WITH ADNIsub.initial
+
+dim(ADNIsub.change.initial)		# 2985   21
+dim(ADNIsub.change)			# 10851   21
+
+ 
+#------------------------------------------------------------------------------------ 
+# 1) Fit the model with initial visit 
+# 2) Fit the model with else using initial visit loadings, freely estimate mean & variance of T1
+# 3) Fit the model with else using initial visit loadings, constraint mean & variance of T1
+#-------------------------------------------------------------------------------------
+
+THEMATRIXM = ADNIsub.change[c(1,14:20)]  
+table(THEMATRIXM[,'rq3score'], exclude=NULL)
+
+	model.mplus.ADNI.free <- " time by copycirc @0.679;
+		time by copysym  @0.975 ;
+		time by copynum  @1.095;
+		time by copyhand  @5.168;
+		time by copytime  @0.847;
+		time by mmdraw    @0.669;
+		time by rq3score   @0.671; 
+                TIME  *;            [TIME  *];
+                [COPYCIRC$1 @ -2.987];     
+                [COPYSYM$1  @ -1.614];  
+                [COPYNUM$1  @ -2.639];  
+                [COPYHAND$1 @ -11.430];  
+                [COPYTIME$1 @ -1.506];   
+                [MMDRAW$1   @ -1.309]; 
+                [RQ3SCORE$1  @ -2.890]; 
+                [RQ3SCORE$2  @ -2.096];
+                [RQ3SCORE$3  @ -0.082];
+              "
+
+
+	body.mplus.ADNI.free <- mplusObject(
+		  	VARIABLE 	= "CATEGORICAL ARE  copycirc
+copysym copynum copyhand copytime mmdraw rq3score;
+IDVARIABLE = rid ;",
+			  ANALYSIS 	= "estimator = wlsmv; parameterization=theta;",
+			  MODEL 	= model.mplus.ADNI.free,
+			  OUTPUT 	= "STANDARDIZED;",
+			  SAVEDATA 	= "FILE is temp.txt;
+					   SAVE is fscores;
+					   FORMAT is free;",
+			  usevariables 	= names(THEMATRIXM),
+			  rdata 	= THEMATRIXM
+		)
+
+
+	fit.mplus.ADNI.u1.free <- mplusModeler(body.mplus.ADNI.free, 
+		                              modelout = "mplus.ADNI.u1.wls.free.inp", run = TRUE, 
+		                              hashfilename = FALSE, writeData = 'always')   
+
+		# mean 0.056, variance 1.603  : TIME
+
+# second run with meand and variance of LV fixed
+	model.mplus.ADNI.fix <- " time by copycirc @0.679;
+		time by copysym  @0.975 ;
+		time by copynum  @1.095;
+		time by copyhand  @5.168;
+		time by copytime  @0.847;
+		time by mmdraw    @0.669;
+		time by rq3score   @0.671; 
+                TIME  @1.603;            [TIME @0.056];
+                [COPYCIRC$1 @ -2.987];     
+                [COPYSYM$1  @ -1.614];  
+                [COPYNUM$1  @ -2.639];  
+                [COPYHAND$1 @ -11.430];  
+                [COPYTIME$1 @ -1.506];   
+                [MMDRAW$1   @ -1.309]; 
+                [RQ3SCORE$1  @ -2.890]; 
+                [RQ3SCORE$2  @ -2.096];
+                [RQ3SCORE$3  @ -0.082];
+              "
+
+
+	body.mplus.ADNI.fix <- mplusObject(
+		  	VARIABLE 	= "CATEGORICAL ARE  copycirc
+copysym copynum copyhand copytime mmdraw rq3score;
+IDVARIABLE = rid ;",
+			  ANALYSIS 	= "estimator = wlsmv; parameterization=theta;",
+			  MODEL 	= model.mplus.ADNI.fix,
+			  OUTPUT 	= "STANDARDIZED;",
+			  SAVEDATA 	= "FILE is temp.txt;
+					   SAVE is fscores;
+					   FORMAT is free;",
+			  usevariables 	= names(THEMATRIXM),
+			  rdata 	= THEMATRIXM
+		)
+
+
+	fit.mplus.ADNI.u1.fix <- mplusModeler(body.mplus.ADNI.fix, 
+		                              modelout = "mplus.ADNI.u1.wls.fix.inp", run = TRUE, 
+		                              hashfilename = FALSE, writeData = 'always')   
+
+	score.mplus.ADNI.u1.wls.fix    =  fit.mplus.ADNI.u1.fix$results$savedata[,"TIME"]
+ 
+
+
+
+##########################################################################################
+length(score.mplus.ADNI.u1.wls.fix)	# 10584
+
+score.table = cbind(ADNIsub.change[rowSums(is.na(ADNIsub.change[,12:18]))!=7, c("rid","visnum","phase.re")],score.mplus.ADNI.u1.wls.fix)
+names(score.table) = c("rid", "visnum", "rphase", "score")
+dim(score.table)	# 10584 4
+
+
+write.table(score.table, "ADNI190115-VSP-WLSMV.txt",          row.names=F, col.names=c("rid", "visnum","phase","score"))
+
+
+# another version (full, with NA, to match the original data)
+score.table.full = merge(ADNIsub[,c("rid","visnum","rphase")], score.table, all=T)
+dim(score.table.full)   # 10851    4
+dim(score.table)	# 10584    4
+
+score.table[score.table[,'rid']==35,]
+score.table.full[score.table.full[,'rid']==35,]
+ADNIsub[ADNIsub[,'rid']==35,c(1:3,13:19)]
+
+write.table(score.table.full, "ADNI190115-VSP-WLSMV-full.txt",          row.names=F, col.names=c("rid", "visnum","phase","score"))
+
+
+# DONE 	   		  2019-09-16 3:32pm
+# Polished 		  2019-09-27
+# Follow convention ('r') 2019-10-30

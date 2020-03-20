@@ -1,0 +1,64 @@
+# last updated: 2019-10-31
+# Seo-Eun Choi
+#
+
+########################################## 
+#
+#  use
+#	ADNIsub.change.initial
+#	ADNIsub.change
+#
+##########################################
+
+
+# For those who don't have MplusAutomation and plyr:
+listOfPackages <- c("MplusAutomation","plyr")
+for (i in listOfPackages){
+     if(! i %in% installed.packages()){
+         install.packages(i, dependencies = TRUE)
+     }
+     library(i)
+} 
+
+library(MplusAutomation) # 0.7-3
+
+
+# WLSMV
+        names(ADNIsub.change.initial)[c(1,14:20)]   # 
+	THEMATRIXM = ADNIsub.change.initial[c(1,14:20)]   
+ 	names(THEMATRIXM)
+	dim(THEMATRIXM)	# [1]  2985    8
+
+	table( THEMATRIXM[,'rq3score'], exclude=NULL)
+
+	model.mplus.ADNI <- " t1 by copycirc* copysym copynum copyhand
+          copytime mmdraw rq3score ;
+	                          t1 @1; "
+
+
+	body.mplus.ADNI.wlsmvid <- mplusObject(
+	  	VARIABLE 	= "CATEGORICAL ARE copycirc 
+copysym copynum copyhand copytime mmdraw rq3score;
+IDVARIABLE = rid;",
+		
+		ANALYSIS 	= "estimator = wlsmv; parameterization=theta;",
+		MODEL 	= model.mplus.ADNI,
+		OUTPUT 	= "STANDARDIZED;",
+		SAVEDATA 	= "FILE is temp.txt;
+				   SAVE is fscores;
+				   FORMAT is free;",
+		usevariables 	= names(THEMATRIXM),
+		rdata 	= THEMATRIXM
+		)
+
+
+	fit.mplus.ADNI.u1.wlsmvid <- mplusModeler(body.mplus.ADNI.wlsmvid, 
+		                              modelout = "mplus.ADNI.u1.wlsmvid.inp", run = TRUE, 
+		                              hashfilename = FALSE, writeData = 'always')   
+
+		score.mplus.ADNI.u1.wlsmvid   = fit.mplus.ADNI.u1.wlsmvid$results$savedata[,"T1"]
+		rids.mplus.ADNI.u1.wlsmvid   = fit.mplus.ADNI.u1.wlsmvid$results$savedata[,"RID"]
+
+		readModels("mplus.adni.u1.wlsmvid.out")$summaries[c('CFI', 'TLI', 'RMSEA_Estimate')]  #   0.97 0.956          0.027
+ 
+

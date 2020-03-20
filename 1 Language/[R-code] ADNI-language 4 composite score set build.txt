@@ -1,0 +1,24 @@
+# 	last updated: 2019.09.27. MLR, language, 1-23-123 build
+#	Seo-Eun Choi
+#
+# 	temp1 contains  fit.mplus.ADNI123.u1.cat.mlr.final$results$savedata  (10588 x 21)
+# 	score.mplus.ADNI123.u1.cat.mlr.final
+
+	 
+score.table = cbind(ADNIsub.change[rowSums(is.na(ADNIsub.change[,-c(1:13,17,18,34)])) != 18, c("rid","visnum","phase")],score.mplus.ADNI123.u1.cat.mlr.final)
+names(score.table) = c("rid", "visnum", "rphase", "score")
+
+dim(score.table)	# [1] 10588    4
+
+ 
+score.table = score.table[order(score.table[,'rid'], score.table[,'visnum']),]
+
+# baseline, else: separate
+write.table(score.table, "ADNI190115-LAN-woNA.txt", row.names=F, col.names=c("rid", "visnum","rphase","score"))
+
+
+# another version (full, with NA, to match the original data)
+score.table.full = merge(ADNIsub.change[,c("rid","visnum","phase")], score.table, all=T)
+write.table(score.table.full, "ADNI190115-LAN-full-MLR.txt",          row.names=F, col.names=c("rid", "visnum","rphase","score"))
+
+

@@ -1,0 +1,193 @@
+Last updated: 2019.10.30 add 'r' for recoded item (q3score)
+#
+# use ADNIChoi.withscore 10851 x 350 (super set of ADNI_190115.ultimate)
+# the most recent modification: 2019.09.16. 1-23 build-up plan
+#----------------------------------------------------------------------
+
+# ADNI_190115.ultimate 10851 x 329 to start with.
+#
+
+# For those who don't have MplusAutomation and plyr:
+listOfPackages <- c("MplusAutomation","plyr")
+for (i in listOfPackages){
+     if(! i %in% installed.packages()){
+         install.packages(i, dependencies = TRUE)
+     }
+     library(i)
+} 
+library(MplusAutomation) # 0.7-3
+
+
+####################################################################################
+# data.frame definitions
+#-----------------------------------------------------------------------------------
+#   see [R-code] definitions.txt
+#---------------------------------------------------------------------------------------
+#
+#
+#  GET DATA: use all subjects, so firstaddx does not matter
+#
+#
+
+ADNIChoi = ADNI_190115.ultimate[,-329]	# for convenience with shorter name
+
+itemnames = c("copycirc", "copysym", "copynum", "copyhand", "copytime", "mmdraw", "q3score")
+idnames = c("rid", "phase", "visnum", "bl_dx", "dxcurren", "firstaddx","addxvis","firstmcidx","mcidxvis","mcibefaddx","lastmci","sconly", "blonly")
+
+unique.rid = unique(ADNIChoi[,'rid'])
+
+
+#---------------------------------------------------------------------------------------
+####################################################################################
+#-----------------------------------------------------------------------------------
+# 1. Data prepration				           	     prepare ADNIsub
+#-----------------------------------------------------------------------------------
+####################################################################################
+
+ADNIsub = ADNIChoi[,which(names(ADNIChoi)%in%c(idnames,itemnames))]
+dim(ADNIsub)	# 10851 20
+
+names(ADNIsub)	
+table(ADNIsub[,'q3score'], exclude=NULL)
+
+#relocate columns
+ADNIsub1 = ADNIsub	# save original: ADNIsub1 (names are not in the order I want)
+ADNIsub[,1:12]  = ADNIsub1[,1:12];  names(ADNIsub)[1:12]  = names(ADNIsub1)[1:12]
+ADNIsub[,13]    = ADNIsub1[,20];    names(ADNIsub)[13]    = names(ADNIsub1)[20]
+ADNIsub[,14:20] = ADNIsub1[,13:19]; names(ADNIsub)[14:20] = names(ADNIsub1)[13:19]
+#check
+all.equal(ADNIsub[,20], ADNIsub1[,19])	 # TRUE check!
+
+
+#--------------------------------------------------------------
+# DATA PREP: frequency tables of all items (EDA)
+#--------------------------------------------------------------
+
+# item names are IN the table
+	library(plyr)
+	for(i in (length(idnames)+1):ncol(ADNIsub)){
+	print(t(count(ADNIsub, names(ADNIsub)[i])))     # this will print actual name
+	cat("\n")}
+
+		   
+
+#--------------------------------------------------------------
+# merge ADNI2 and ADNIGO: update ADNIsub
+#--------------------------------------------------------------
+which(names(ADNIsub)=="phase")	# 3
+table(ADNIsub[,'phase'], exclude=NULL)
+ADNIsub[ADNIsub[,'phase']=="ADNI1", "phase"] = 1
+ADNIsub[ADNIsub[,'phase']=="ADNI2", "phase"] = 2
+ADNIsub[ADNIsub[,'phase']=="ADNIGO","phase"] = 2
+ADNIsub[ADNIsub[,'phase']=="ADNI3", "phase"] = 3
+# phase is recoded 1,2,3,GO (string) -> 1,2,3 (numeric)
+names(ADNIsub)[which(names(ADNIsub)=="phase")] = "rphase"
+names(ADNIsub)[3]
+
+
+#--------------------------------------------------------------
+# DATA PREP: flip qscores
+#--------------------------------------------------------------
+
+ table(ADNIsub[,"visnum"], exclude=NULL)
+ table(ADNIsub[,"q3score"], exclude=NULL)
+
+  ADNIsub[,"q3score"] = 5 - ADNIsub[,"q3score"]
+  table(ADNIsub[,"q3score"], exclude=NULL)
+ 
+  names(ADNIsub)[which(names(ADNIsub)=="q3score")] = "rq3score"
+
+# checking
+
+  table(ADNIsub[,"rphase"],ADNIsub[,"rq3score"],  exclude=NULL)
+
+
+
+#-------------------------------------------------------------
+# mark and get initial visits
+#-------------------------------------------------------------
+ADNIsub$initial = 0
+ADNIsub$initial[!duplicated(ADNIsub$rid)] = 1
+
+ADNIsub.initial = ADNIsub[ADNIsub[,'initial']==1,]
+ADNIsub.followup = ADNIsub[ADNIsub[,'initial']==0,]
+
+# take subset (temporary)
+
+ADNIsub.initial.ADNI1 = ADNIsub.initial[ADNIsub.initial[,'rphase']==1,]
+ADNIsub.initial.ADNI2 = ADNIsub.initial[ADNIsub.initial[,'rphase']==2,]
+ADNIsub.initial.ADNI3 = ADNIsub.initial[ADNIsub.initial[,'rphase']==3,]
+
+
+table(ADNIsub[,'initial'], exclude=NULL)	# 0 (7866) 1 (2985)
+
+dim(ADNIsub.initial)	# 2985   21
+dim(ADNIsub.followup)	# 7866   21
+
+
+ table(ADNIsub.initial[,"rphase"], ADNIsub.initial[,"rq3score"],  exclude=NULL)
+ table(ADNIsub.followup[,"rphase"],ADNIsub.followup[,"rq3score"],  exclude=NULL)
+	
+
+ 
+table( ADNIsub.initial[,"rq3score"],  exclude=NULL)
+
+
+# check is done. let's go back and merge
+
+temp = data.matrix( ADNIsub)
+table(temp[,'rq3score'], exclude=NULL)
+temp[temp[,'rq3score'] < 2, 'rq3score'] = 2
+table(temp[,'rq3score'], exclude=NULL)
+temp[,'rq3score'] = temp[,'rq3score']-2 # shift 2,3,4,5 -> 0,1,2,3
+table(temp[,'rq3score'], exclude=NULL)
+
+
+ADNIsub.change = as.data.frame(temp)
+
+ADNIsub.change.initial = ADNIsub.change[ADNIsub.change[,'initial']==1,]
+ADNIsub.change.followup = ADNIsub.change[ADNIsub.change[,'initial']==0,]
+dim(ADNIsub.change.initial)	# 2985  21
+dim(ADNIsub.change.followup)	# 7866  21
+
+
+
+# checkup
+table(ADNIsub[,'rphase'], 		   ADNIsub[,'rq3score'], exclude=NULL)
+table(ADNIsub.change[,'rphase'], 	   ADNIsub.change[,'rq3score'], exclude=NULL)
+table(ADNIsub.initial[,'rphase'], 	   ADNIsub.initial[,'rq3score'], exclude=NULL)
+table(ADNIsub.change.initial[,'rphase'], ADNIsub.change.initial[,'rq3score'], exclude=NULL)
+table(ADNIsub.change.initial[,'rq3score'], exclude=NULL)
+
+
+for(j in 1:7){
+i = j+13
+cat('i is ',i,' item name is ',names(ADNIsub)[i])
+print(table(ADNIsub.change[,'rphase'], ADNIsub.change[,i], exclude=NULL))
+print(table(ADNIsub.change.initial[,'rphase'], ADNIsub.change.initial[,i], exclude=NULL))
+print(table(ADNIsub.change[,i], exclude=NULL))
+print(table(ADNIsub.change.initial[,i], exclude=NULL))
+print(round(prop.table(table(ADNIsub.change[,'rphase'], ADNIsub.change[,i], exclude=NULL),1),4)*100) # row proportion
+print(round(prop.table(table(ADNIsub.change.initial[,'rphase'], ADNIsub.change.initial[,i], exclude=NULL),1),4)*100)
+cat('-----------------------------------------------------------------\n')
+}
+
+
+table(ADNIsub.change.initial[,'rphase'], exclude=NULL)
+table(ADNIsub.change.initial[,'initial'], exclude=NULL)
+table(ADNIsub.change[,'initial'], exclude=NULL)
+
+# LAST CHECK
+names(ADNIsub.change.initial)[14:20]
+table(ADNIsub.change.initial[,14], exclude=NULL)
+table(ADNIsub.change.initial[,15], exclude=NULL)
+table(ADNIsub.change.initial[,16], exclude=NULL)
+table(ADNIsub.change.initial[,17], exclude=NULL)
+table(ADNIsub.change.initial[,18], exclude=NULL)
+table(ADNIsub.change.initial[,19], exclude=NULL)
+table(ADNIsub.change.initial[,20], exclude=NULL)
+
+# use ADNIsub.change.initial and
+#     ADNIsub.change
+
+########################################################################################################### DONE WITH DATA PREP

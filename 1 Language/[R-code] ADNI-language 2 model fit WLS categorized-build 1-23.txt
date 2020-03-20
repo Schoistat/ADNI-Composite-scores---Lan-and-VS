@@ -1,0 +1,443 @@
+# 	last updated: 2019-09-27
+#  	item bank approach: ADNI1 then ADNI2/GO/3
+#	Seo-Eun Choi
+#----------------------------------------------------------
+# categorized counts with WLSMV
+#----------------------------------------------------------
+# use 
+# 	ADNIsub.change.initial		2985 34 <- created earlier
+# 	ADNIsub.change.initial.ADNI1	 822 34 <- created earlier
+# 	ADNIsub.change.initial.ADNI2	1586 34 <- not used here
+# 	ADNIsub.change.initial.ADNI3	 577 34 <- not used here
+#	ADNIsub.change.initial.ADNI23	2163 34 <- created here, and this is used
+#----------------------------------------------------------
+
+library(MplusAutomation)
+
+names(ADNIsub.change.initial)
+
+
+
+# ADNI1
+# WLSMV, 
+         names(ADNIsub.change.initial.ADNI1)[-c(2:13,17,18,28:34)]   # 17,18 mmwatch mmpencil // 28:33: ADNI2/GO // 34: initial index
+	THEMATRIXM = ADNIsub.change.initial.ADNI1[-c(2:13,17,18,28:34)]   
+ 	names(THEMATRIXM)
+	dim(THEMATRIXM)	# [1] 822 13
+
+	table( THEMATRIXM[,'rq2score'], exclude=NULL)
+	table( THEMATRIXM[,'rq5score'], exclude=NULL)
+	table( THEMATRIXM[,'rq6score'], exclude=NULL)
+	table( THEMATRIXM[,'rcatanim'], exclude=NULL)
+	table( THEMATRIXM[,'rbnttota'], exclude=NULL)
+
+	model.mplus.ADNI1 <- " t1 by rcatanim* rcatvege rbnttota  mmrepeat  mmhand    
+	mmfold    mmonflr   mmread    mmwrite rq2score   rq5score   rq6score;
+	                           t1 @1; "
+
+
+	body.mplus.ADNI1.cat.wlsmv <- mplusObject(
+	  	VARIABLE 	= "CATEGORICAL ARE rcatanim rcatvege 
+rbnttota  mmrepeat  mmhand   mmfold    mmonflr   mmread    mmwrite rq2score   
+rq5score   rq6score;
+IDVARIABLE = rid;",
+	  	ANALYSIS 	= "estimator = wlsmv; parameterization=theta;",
+		MODEL 	= model.mplus.ADNI1,
+		OUTPUT 	= "STANDARDIZED;",
+		SAVEDATA 	= "FILE is temp.txt;
+				   SAVE is fscores;
+				   FORMAT is free;",
+		usevariables 	= names(THEMATRIXM),
+		rdata 	= THEMATRIXM
+		)
+
+
+	fit.mplus.ADNI1.u1.cat.wlsmv <- mplusModeler(body.mplus.ADNI1.cat.wlsmv, 
+		                              modelout = "mplus.ADNI1.u1.cat.wlsmv.inp", run = TRUE, 
+		                              hashfilename = FALSE, writeData = 'always')   
+
+		score.mplus.ADNI1.u1.cat.wlsmv       = fit.mplus.ADNI1.u1.cat.wlsmv$results$savedata[,"T1"]
+		remaining.rid.ADNI1.cat.wlsmv 	   = fit.mplus.ADNI1.u1.cat.mlr$results$savedata[,"RID"]
+		length(remaining.rid.ADNI1.cat.wlsmv) # 822
+
+		readModels("mplus.ADNI1.u1.cat.wlsmv.out")$summaries[c('CFI', 'TLI', 'RMSEA_Estimate')]  #   0.97 0.963          0.039
+
+###################################################################################################################
+#
+# If we add ADNI2/GO/3 together,
+#
+###################################################################################################################
+
+table(ADNIsub.change.initial[,'phase'], exclude=NULL)
+
+ADNIsub.change.initial.ADNI23 = ADNIsub.change.initial[ADNIsub.change.initial[,'phase'] !=1,]
+dim(ADNIsub.change.initial.ADNI23 )	# 2163 34
+1586+577				# 2163
+
+	which(names(ADNIsub.change.initial.ADNI23) %in% c("rcatvege", "mmwatch", "mmpencil")) # [1]  15 17 18
+
+
+        names(ADNIsub.change.initial.ADNI23)[-c(2:13,15,17,18,34)]  # drop rcatvege (15), mmwatch (17), mmpencil (18), initial index (34)
+	THEMATRIXM = ADNIsub.change.initial.ADNI23[-c(2:13,15,17,18,34)]   
+ 	names(THEMATRIXM)
+	dim(THEMATRIXM)  # 2163   18
+
+	# double check
+	table( THEMATRIXM[,'rq2score'], exclude=NULL)
+	table( THEMATRIXM[,'rq5score'], exclude=NULL)
+	table( THEMATRIXM[,'rq6score'], exclude=NULL)
+	table( THEMATRIXM[,'rcatanim'], exclude=NULL)
+	table( THEMATRIXM[,'rbnttota'], exclude=NULL)
+	table( THEMATRIXM[,'rffluenc'], exclude=NULL)
+
+# fix items from ADNI1, freely estimate new items (MoCA)
+# Once loading and thresholds are obtained, don't re-fit with fixing all. Just move to ADNI3.
+
+# fix LV mean 0, variance 1
+	model.mplus.ADNI23 <- " t1 by rcatanim @ 1.327;
+              t1 by rbnttota @1.121;
+              t1 by mmrepeat @0.292;
+              t1 by mmhand   @1.147;
+ 	      t1 by mmfold   @0.469;
+              t1 by mmonflr  @0.197;
+              t1 by mmread   @0.293;
+              t1 by mmwrite  @0.314;
+              t1 by rq2score  @0.543;
+              t1 by rq5score  @1.175;
+              t1 by rq6score  @0.529;
+              t1 by lion *;
+              t1 by rhino *;
+              t1 by camel*;
+              t1 by repeat1*;
+              t1 by repeat2*;
+              t1 by rffluenc*;
+              t1 @1;
+	    [RCATANIM$1 @ -4.164]; 
+	    [RCATANIM$2 @ -2.275];
+	    [RCATANIM$3 @ -1.368];
+	    [RCATANIM$4 @ -0.429];
+	    [RCATANIM$5 @  0.445];
+	    [RCATANIM$6 @  1.291];
+	    [RCATANIM$7 @  2.094];
+	    [RCATANIM$8 @  3.112];
+	    [RCATANIM$9 @  3.879];
+	    [RBNTTOTA$1 @ -3.578];
+	    [RBNTTOTA$2 @ -3.177];
+	    [RBNTTOTA$3 @ -2.641];
+	    [RBNTTOTA$4 @ -2.149];
+	    [RBNTTOTA$5 @ -1.698];
+	    [RBNTTOTA$6 @ -1.236];
+	    [RBNTTOTA$7 @ -0.714];
+	    [RBNTTOTA$8 @ -0.165]; 
+	    [RBNTTOTA$9 @  0.756];
+	    [MMREPEAT$1 @ -1.039];
+	    [MMHAND$1   @ -1.363];
+	    [MMFOLD$1   @ -2.341];
+	    [MMONFLR$1  @ -2.010];
+	    [MMREAD$1   @ -2.487];
+	    [MMWRITE$1  @ -2.066];
+	    [RQ2SCORE$1  @ -2.292];
+	    [RQ2SCORE$2  @ -1.098]; 
+	    [RQ5SCORE$1  @ -2.919];
+	    [RQ5SCORE$2  @ -1.106]; 
+	    [RQ6SCORE$1  @ -2.253];
+	    [RQ6SCORE$2  @ -1.264];
+	"
+
+
+	body.mplus.ADNI23.cat.wlsmv <- mplusObject(
+	  	VARIABLE 	= "CATEGORICAL ARE rcatanim rbnttota  mmrepeat  
+mmhand  mmfold    mmonflr   mmread    mmwrite rq2score   rq5score   rq6score
+        lion rhino camel repeat1 repeat2 rffluenc;
+IDVARIABLE = rid;",
+	  	ANALYSIS 	= "estimator = wlsmv; parameterization=theta;",
+		MODEL 	= model.mplus.ADNI23,
+		OUTPUT 	= "STANDARDIZED;",
+		SAVEDATA 	= "FILE is temp.txt;
+				   SAVE is fscores;
+				   FORMAT is free;",
+		usevariables 	= names(THEMATRIXM),
+		rdata 	= THEMATRIXM
+		)
+
+
+	fit.mplus.ADNI23.u1.cat.wlsmv <- mplusModeler(body.mplus.ADNI23.cat.wlsmv, 
+		                              modelout = "mplus.ADNI23.u1.cat.wlsmv.inp", run = TRUE, 
+		                              hashfilename = FALSE, writeData = 'always')   
+
+		score.mplus.ADNI23.u1.cat.wlsmv    = fit.mplus.ADNI23.u1.cat.wlsmv$results$savedata[,"T1"]
+		remaining.rid.ADNI23.cat.wlsmv 	   = fit.mplus.ADNI23.u1.cat.wlsmv$results$savedata[,"RID"]
+		length(score.mplus.ADNI23.u1.cat.wlsmv) # 2093
+		length(remaining.rid.ADNI23.cat.wlsmv)  # 2093 
+
+		readModels("mplus.ADNI23.u1.cat.wlsmv.out")$summaries[c('CFI', 'TLI', 'RMSEA_Estimate')]  #  0.603 0.663          0.056
+
+
+# free mean var of LV
+
+	model.mplus.ADNI23.free <- " t1 by rcatanim @ 1.327;
+              t1 by rbnttota @1.121;
+              t1 by mmrepeat @0.292;
+              t1 by mmhand   @1.147;
+ 	      t1 by mmfold   @0.469;
+              t1 by mmonflr  @0.197;
+              t1 by mmread   @0.293;
+              t1 by mmwrite  @0.314;
+              t1 by rq2score  @0.543;
+              t1 by rq5score  @1.175;
+              t1 by rq6score  @0.529;
+              t1 by lion *;
+              t1 by rhino *;
+              t1 by camel*;
+              t1 by repeat1*;
+              t1 by repeat2*;
+              t1 by rffluenc*;
+              t1 *; [t1 *];
+	    [RCATANIM$1 @ -4.164]; 
+	    [RCATANIM$2 @ -2.275];
+	    [RCATANIM$3 @ -1.368];
+	    [RCATANIM$4 @ -0.429];
+	    [RCATANIM$5 @  0.445];
+	    [RCATANIM$6 @  1.291];
+	    [RCATANIM$7 @  2.094];
+	    [RCATANIM$8 @  3.112];
+	    [RCATANIM$9 @  3.879];
+	    [RBNTTOTA$1 @ -3.578];
+	    [RBNTTOTA$2 @ -3.177];
+	    [RBNTTOTA$3 @ -2.641];
+	    [RBNTTOTA$4 @ -2.149];
+	    [RBNTTOTA$5 @ -1.698];
+	    [RBNTTOTA$6 @ -1.236];
+	    [RBNTTOTA$7 @ -0.714];
+	    [RBNTTOTA$8 @ -0.165]; 
+	    [RBNTTOTA$9 @  0.756];
+	    [MMREPEAT$1 @ -1.039];
+	    [MMHAND$1   @ -1.363];
+	    [MMFOLD$1   @ -2.341];
+	    [MMONFLR$1  @ -2.010];
+	    [MMREAD$1   @ -2.487];
+	    [MMWRITE$1  @ -2.066];
+	    [RQ2SCORE$1  @ -2.292];
+	    [RQ2SCORE$2  @ -1.098]; 
+	    [RQ5SCORE$1  @ -2.919];
+	    [RQ5SCORE$2  @ -1.106]; 
+	    [RQ6SCORE$1  @ -2.253];
+	    [RQ6SCORE$2  @ -1.264];
+	"
+
+
+	body.mplus.ADNI23.cat.wlsmv.free <- mplusObject(
+	  	VARIABLE 	= "CATEGORICAL ARE rcatanim rbnttota  mmrepeat  
+mmhand  mmfold    mmonflr   mmread    mmwrite rq2score   rq5score   rq6score
+        lion rhino camel repeat1 repeat2 rffluenc;
+IDVARIABLE = rid;",
+	  	ANALYSIS 	= "estimator = wlsmv; parameterization=theta;",
+		MODEL 	= model.mplus.ADNI23.free,
+		OUTPUT 	= "STANDARDIZED;",
+		SAVEDATA 	= "FILE is temp.txt;
+				   SAVE is fscores;
+				   FORMAT is free;",
+		usevariables 	= names(THEMATRIXM),
+		rdata 	= THEMATRIXM
+		)
+
+
+	fit.mplus.ADNI23.u1.cat.wlsmv.free <- mplusModeler(body.mplus.ADNI23.cat.wlsmv.free, 
+		                              modelout = "mplus.ADNI23.u1.cat.wlsmv.free.inp", run = TRUE, 
+		                              hashfilename = FALSE, writeData = 'always')   
+
+		score.mplus.ADNI23.u1.cat.wlsmv.free       = fit.mplus.ADNI23.u1.cat.wlsmv.free$results$savedata[,"T1"]
+		remaining.rid.ADNI23.cat.wlsmv.free 	   = fit.mplus.ADNI23.u1.cat.wlsmv.free$results$savedata[,"RID"]
+		length(score.mplus.ADNI23.u1.cat.wlsmv.free) # 2093
+		length(remaining.rid.ADNI23.cat.wlsmv.free)  # 2093 
+
+		readModels("mplus.ADNI23.u1.cat.wlsmv.free.out")$summaries[c('CFI', 'TLI', 'RMSEA_Estimate')]  #  0.849 0.87          0.035
+
+ 
+
+#---------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------
+# scores
+intersect(ls(pattern="score.mplus.ADNI"), ls(pattern="wlsmv"))	# 7 scores
+#	 "score.mplus.ADNI1.u1.cat.wlsmv"             
+#	 "score.mplus.ADNI2.u1.cat.wlsmv"	"score.mplus.ADNI2.u1.cat.wlsmv.free" 
+# 	 "score.mplus.ADNI3.u1.cat.wlsmv"	"score.mplus.ADNI3.u1.cat.wlsmv.free"
+#	 "score.mplus.ADNI23.u1.cat.wlsmv"      "score.mplus.ADNI23.u1.cat.wlsmv.free"       
+  
+cor(score.mplus.ADNI2.u1.cat.wlsmv, score.mplus.ADNI2.u1.cat.wlsmv.free)   # 0.9945638
+cor(score.mplus.ADNI3.u1.cat.wlsmv, score.mplus.ADNI3.u1.cat.wlsmv.free)   # 0.9588194
+cor(score.mplus.ADNI23.u1.cat.wlsmv,score.mplus.ADNI23.u1.cat.wlsmv.free)  # 0.9907399
+
+par(mfrow=c(1,3))
+plot(score.mplus.ADNI2.u1.cat.wlsmv, score.mplus.ADNI2.u1.cat.wlsmv.free,  xlab="LV mean 0, var 1", ylab="LV mean var free", main="ADNI2/GO")   
+plot(score.mplus.ADNI3.u1.cat.wlsmv, score.mplus.ADNI3.u1.cat.wlsmv.free,  xlab="LV mean 0, var 1", ylab="LV mean var free", main="ADNI3")   
+plot(score.mplus.ADNI23.u1.cat.wlsmv,score.mplus.ADNI23.u1.cat.wlsmv.free, xlab="LV mean 0, var 1", ylab="LV mean var free", main="ADNI2/GO/3")  
+
+min(score.mplus.ADNI2.u1.cat.wlsmv, score.mplus.ADNI2.u1.cat.wlsmv.free,score.mplus.ADNI3.u1.cat.wlsmv, score.mplus.ADNI3.u1.cat.wlsmv.free,score.mplus.ADNI23.u1.cat.wlsmv,score.mplus.ADNI23.u1.cat.wlsmv.free)
+max(score.mplus.ADNI2.u1.cat.wlsmv, score.mplus.ADNI2.u1.cat.wlsmv.free,score.mplus.ADNI3.u1.cat.wlsmv, score.mplus.ADNI3.u1.cat.wlsmv.free,score.mplus.ADNI23.u1.cat.wlsmv,score.mplus.ADNI23.u1.cat.wlsmv.free)
+
+# -3.768, 2.781
+
+
+par(mfrow=c(2,3))
+boxplot(score.mplus.ADNI2.u1.cat.wlsmv,       main="ADNI2",       horizontal=T, ylim=c(-3.8, 2.8))
+boxplot(score.mplus.ADNI3.u1.cat.wlsmv,       main="ADNI3",       horizontal=T, ylim=c(-3.8, 2.8)) 
+boxplot(score.mplus.ADNI23.u1.cat.wlsmv,      main="ADNI2/GO/3",  horizontal=T, ylim=c(-3.8, 2.8))
+
+boxplot(score.mplus.ADNI2.u1.cat.wlsmv.free,  main="ADNI2 free LV",       horizontal=T, ylim=c(-3.8, 2.8))
+boxplot(score.mplus.ADNI3.u1.cat.wlsmv.free,  main="ADNI3 free LV",       horizontal=T, ylim=c(-3.8, 2.8))
+boxplot(score.mplus.ADNI23.u1.cat.wlsmv.free, main="ADNI2/GO/3 free LV",  horizontal=T, ylim=c(-3.8, 2.8))
+
+score.mplus.ADNI3.u1.cat.wlsmv
+score.mplus.ADNI3.u1.cat.wlsmv.free
+
+score.mplus.ADNI23.u1.cat.wlsmv
+score.mplus.ADNI23.u1.cat.wlsmv.free
+#---------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------
+# ADNI all, including initial visits: free mean and variance of LV
+
+dim(ADNIsub.change )	# 10851 34
+table(ADNIsub.change[,'phase'], exclude=NULL)	# 1(3872) 2(5913) 3(1066)  no NA
+
+
+	which(names(ADNIsub.change) %in% c("mmwatch", "mmpencil")) # [1]  17 18
+
+
+        names(ADNIsub.change.initial.ADNI23)[-c(2:13,17,18,34)]  # drop mmwatch (17), mmpencil (18), initial index (34)
+	THEMATRIXM = ADNIsub.change[-c(2:13,17,18,34)]   
+ 	names(THEMATRIXM)
+	dim(THEMATRIXM)  # 10851    19
+
+	table( THEMATRIXM[,'rq2score'], exclude=NULL)
+	table( THEMATRIXM[,'rq5score'], exclude=NULL)
+	table( THEMATRIXM[,'rq6score'], exclude=NULL)
+	table( THEMATRIXM[,'rcatanim'], exclude=NULL)
+	table( THEMATRIXM[,'rbnttota'], exclude=NULL)
+	table( THEMATRIXM[,'rffluenc'], exclude=NULL)
+
+
+	model.mplus.ADNI123.free <- " t1 by rcatanim @ 1.327;
+              t1 by rcatvege @1.192;
+              t1 by rbnttota @1.121;
+              t1 by mmrepeat @0.292;
+              t1 by mmhand   @1.147;
+ 	      t1 by mmfold   @0.469;
+              t1 by mmonflr  @0.197;
+              t1 by mmread   @0.293;
+              t1 by mmwrite  @0.314;
+              t1 by rq2score  @0.543;
+              t1 by rq5score  @1.175;
+              t1 by rq6score  @0.529;
+              t1 by lion     @0.885;
+              t1 by rhino    @0.794;
+              t1 by camel    @1.481;
+              t1 by repeat1  @0.681;
+              t1 by repeat2  @0.543;
+              t1 by rffluenc @0.504;
+              t1 *; [t1 *];
+	    [RCATANIM$1 @ -4.164]; 
+	    [RCATANIM$2 @ -2.275];
+	    [RCATANIM$3 @ -1.368];
+	    [RCATANIM$4 @ -0.429];
+	    [RCATANIM$5 @  0.445];
+	    [RCATANIM$6 @  1.291];
+	    [RCATANIM$7 @  2.094];
+	    [RCATANIM$8 @  3.112];
+	    [RCATANIM$9 @  3.879];
+	    [RCATVEGE$1 @ -3.342];
+	    [RCATVEGE$2 @ -2.143];
+	    [RCATVEGE$3 @ -0.909];
+	    [RCATVEGE$4 @ -0.136];
+	    [RCATVEGE$5 @  0.567];
+	    [RCATVEGE$6 @  1.295];
+	    [RCATVEGE$7 @  1.930];
+	    [RCATVEGE$8 @  2.862];
+	    [RCATVEGE$9 @  3.565];
+	    [RBNTTOTA$1 @ -3.578];
+	    [RBNTTOTA$2 @ -3.177];
+	    [RBNTTOTA$3 @ -2.641];
+	    [RBNTTOTA$4 @ -2.149];
+	    [RBNTTOTA$5 @ -1.698];
+	    [RBNTTOTA$6 @ -1.236];
+	    [RBNTTOTA$7 @ -0.714];
+	    [RBNTTOTA$8 @ -0.165]; 
+	    [RBNTTOTA$9 @  0.756];
+	    [MMREPEAT$1 @ -1.039];
+	    [MMHAND$1   @ -1.363];
+	    [MMFOLD$1   @ -2.341];
+	    [MMONFLR$1  @ -2.010];
+	    [MMREAD$1   @ -2.487];
+	    [MMWRITE$1  @ -2.066];
+	    [Q2SCORE$1  @ -2.292];
+	    [Q2SCORE$2  @ -1.098]; 
+	    [Q5SCORE$1  @ -2.919];
+	    [Q5SCORE$2  @ -1.106]; 
+	    [Q6SCORE$1  @ -2.253];
+	    [Q6SCORE$2  @ -1.264];
+   	    [LION$1     @ -2.442];
+	    [RHINO$1    @ -0.950];
+	    [CAMEL$1    @ -2.848];
+     	    [REPEAT1$1  @ -1.129];
+    	    [REPEAT2$1  @ -0.475];
+ 	    [FFLUENCY$1 @ -2.421];
+	    [FFLUENCY$2 @ -1.715];
+	    [FFLUENCY$3 @ -0.949];
+	    [FFLUENCY$4 @ -0.290];
+	    [FFLUENCY$5 @  0.435];
+	    [FFLUENCY$6 @  1.161];
+	    [FFLUENCY$7 @  1.880];
+	    [FFLUENCY$8 @  2.435];
+	    [FFLUENCY$9 @  3.022];
+	"
+
+
+	body.mplus.ADNI123.cat.wlsmv.free <- mplusObject(
+	  	VARIABLE 	= "CATEGORICAL ARE rcatanim rcatvege rbnttota  mmrepeat  
+mmhand  mmfold    mmonflr   mmread    mmwrite rq2score   rq5score   rq6score
+        lion rhino camel repeat1 repeat2 rffluenc;
+IDVARIABLE = rid;",
+	  	ANALYSIS 	= "estimator = wlsmv; parameterization=theta;",
+		MODEL 	= model.mplus.ADNI123.free,
+		OUTPUT 	= "STANDARDIZED;",
+		SAVEDATA 	= "FILE is temp.txt;
+				   SAVE is fscores;
+				   FORMAT is free;",
+		usevariables 	= names(THEMATRIXM),
+		rdata 	= THEMATRIXM
+		)
+
+
+	fit.mplus.ADNI123.u1.cat.wlsmv.free <- mplusModeler(body.mplus.ADNI123.cat.wlsmv.free, 
+		                              modelout = "mplus.ADNI123.u1.cat.wlsmv.free.inp", run = TRUE, 
+		                              hashfilename = FALSE, writeData = 'always')   
+
+
+# END UP WITH ERRORS
+# comment: let's use MLR
+
+#
+# Below were coded earlier, but couldn't be used.
+#
+#		score.mplus.ADNI123.u1.cat.wlsmv.free       = fit.mplus.ADNI123.u1.cat.wlsmv.free$results$savedata[,"T1"]
+#		remaining.rid.ADNI123.cat.wlsmv.free 	    = fit.mplus.ADNI123.u1.cat.wlsmv.free$results$savedata[,"RID"]
+#		length(score.mplus.ADNI123.u1.cat.wlsmv.free)
+#		length(remaining.rid.ADNI123.cat.wlsmv.free)  
+
+#		readModels("mplus.ADNI123.u1.cat.wlsmv.free.out")$summaries[c('CFI', 'TLI', 'RMSEA_Estimate')]  
+
+ 
+
+
+
+########################################################################################
+########################################################################################
+ls(pattern="score.mplus.ADNI")
+
+
